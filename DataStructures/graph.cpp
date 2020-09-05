@@ -2,6 +2,8 @@
 #include <string>
 #include <tuple>
 #include <vector>
+#include <deque>
+#include <algorithm>
 #include <unordered_map>
 using namespace std;
 
@@ -59,6 +61,8 @@ public:
 
     void addEdge(string from, string to, int weight=1);
     vector<tuple<string, string, int>> edges();
+
+    tuple<vector<string>, int> findTheShortesPath(string start, string end);
 private:
     unordered_map<string, Vertex*> graphDict;
     vector<tuple<string, string, int>> generateEdgesDict();
@@ -90,7 +94,7 @@ vector<string> Graph::vertices()
 
 void Graph::addEdge(string from, string to, int weight)
 {
-    if (!weighted) { weight = 1; }
+    if (weighted == false) { weight = 1; }
     addVertex(from);
     addVertex(to);
 
@@ -122,6 +126,77 @@ vector<tuple<string, string, int>> Graph::generateEdgesDict()
 vector<tuple<string, string, int>> Graph::edges()
 {
     return generateEdgesDict();
+}
+
+tuple<vector<string>, int> Graph::findTheShortesPath(string start, string end)
+{
+    int inf = INT32_MAX;
+    vector<Vertex*> vertices;
+    for (auto kv : graphDict) {
+        vertices.push_back(kv.second);
+    }
+
+    unordered_map<string, tuple<int, string>> distances;
+    for (size_t i = 0; i < vertices.size(); i++) {
+        distances[vertices[i]->id] = make_tuple(inf, "NULL");
+    }
+    distances[start] = make_tuple(0, "NULL");
+
+    struct comFunc
+    {
+        unordered_map<string, tuple<int, string>> distances;
+        comFunc(unordered_map<string, tuple<int, string>> d)
+        {
+            distances = d;
+        }
+
+        bool operator()(Vertex* x, Vertex* y)
+        {
+            return get<0>(distances[x->id]) > get<0>(distances[y->id]);
+        }
+    };
+
+    make_heap(vertices.begin(), vertices.end(), comFunc(distances));
+
+    while (vertices.size() > 0) {
+        Vertex* curVertex = vertices.front();
+        pop_heap(vertices.begin(), vertices.end(), comFunc(distances));
+        vertices.pop_back();
+
+        if (get<0>(distances[curVertex->id]) == inf) { break; }
+
+        for (auto kv : curVertex->adjacent) {
+            string neighbor = kv.first;
+            int weight = kv.second;
+
+            int alternativeRout = get<0>(distances[curVertex->id]) + weight;
+            if (alternativeRout < get<0>(distances[neighbor])) {
+                distances[neighbor] = make_tuple(alternativeRout, curVertex->id);
+            }
+        }
+
+        make_heap(vertices.begin(), vertices.end(), comFunc(distances));
+    }
+
+    vector<string> path;
+    string curVertex = end;
+    while (curVertex != "NULL") {
+        path.push_back(curVertex);
+        curVertex = get<1>(distances[curVertex]);
+    }
+
+    // inverse the vector
+    int l = 0;
+    int r = path.size() - 1;
+    while (l != r) {
+        string temp = path[l];
+        path[l] = path[r];
+        path[r] = temp;
+        l++;
+        r--;
+    }
+
+    return make_tuple(path, get<0>(distances[end]));
 }
 
 
@@ -179,11 +254,27 @@ void printArray(vector<tuple<string, string, int>> arr)
 
 int main()
 {
-    Graph g = Graph(false, true);
-    g.addEdge("A", "B", 1);
-    g.addEdge("A", "C", 2);
-    g.addEdge("C", "D", 3);
+    Graph g = Graph(true, true);
+    g.addEdge("A", "B", 5);
+    g.addEdge("A", "C", 3);
+    g.addEdge("B", "A", 5);
+    g.addEdge("B", "C", 1);
     g.addEdge("B", "D", 4);
-    printArray(g.edges());
+    g.addEdge("C", "A", 3);
+    g.addEdge("C", "B", 1);
+    g.addEdge("C", "D", 6);
+    g.addEdge("D", "B", 4);
+    g.addEdge("D", "C", 6);
+    g.addEdge("D", "E", 1);
+    g.addEdge("E", "D", 1);
+
+    vector<string> path;
+    int length;
+    auto t = g.findTheShortesPath("A", "E");
+    path = get<0>(t);
+    length = get<1>(t);
+
+    printArray(path);
+    cout << length;
     return 0;
 }
