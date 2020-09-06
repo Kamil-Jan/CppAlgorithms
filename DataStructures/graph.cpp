@@ -2,7 +2,6 @@
 #include <string>
 #include <tuple>
 #include <vector>
-#include <deque>
 #include <algorithm>
 #include <unordered_map>
 using namespace std;
@@ -62,7 +61,9 @@ public:
     void addEdge(string from, string to, int weight=1);
     vector<tuple<string, string, int>> edges();
 
-    tuple<vector<string>, int> findTheShortesPath(string start, string end);
+    tuple<vector<string>, int> findTheShortestPath(string start, string end);
+    typedef vector<vector<string>> path_t;
+    path_t findAllPaths(string start, string end, vector<string> path = {});
 private:
     unordered_map<string, Vertex*> graphDict;
     vector<tuple<string, string, int>> generateEdgesDict();
@@ -128,7 +129,7 @@ vector<tuple<string, string, int>> Graph::edges()
     return generateEdgesDict();
 }
 
-tuple<vector<string>, int> Graph::findTheShortesPath(string start, string end)
+tuple<vector<string>, int> Graph::findTheShortestPath(string start, string end)
 {
     int inf = INT32_MAX;
     vector<Vertex*> vertices;
@@ -199,6 +200,26 @@ tuple<vector<string>, int> Graph::findTheShortesPath(string start, string end)
     return make_tuple(path, get<0>(distances[end]));
 }
 
+Graph::path_t Graph::findAllPaths(string start, string end, vector<string> path)
+{
+    path.push_back(start);
+    if (start == end) {
+        return { path };
+    }
+    if (graphDict.find(start) == graphDict.end()) {
+        return {};
+    }
+    path_t paths = {};
+    for (string node : graphDict[start]->getConnections()) {
+        if (find(path.begin(), path.end(), node) == path.end()) {
+            path_t newPaths = findAllPaths(node, end, path);
+            for (vector<string> newPath : newPaths) {
+                paths.push_back(newPath);
+            }
+        }
+    }
+    return paths;
+}
 
 void printHashMap(unordered_map<string, Vertex*> map)
 {
@@ -252,6 +273,15 @@ void printArray(vector<tuple<string, string, int>> arr)
     cout << "}\n";
 }
 
+void printArray(vector<vector<string>> arr)
+{
+    cout << "{\n";
+    for (size_t i = 0; i < arr.size(); i++) {
+        printArray(arr[i]);
+    }
+    cout << "}\n";
+}
+
 int main()
 {
     Graph g = Graph(true, true);
@@ -270,11 +300,15 @@ int main()
 
     vector<string> path;
     int length;
-    auto t = g.findTheShortesPath("A", "E");
+    auto t = g.findTheShortestPath("A", "E");
     path = get<0>(t);
     length = get<1>(t);
 
+    cout << "The shortest path from 'A' to 'E':" << "\n";
     printArray(path);
-    cout << length;
+    cout << "Length: " << length << "\n\n";
+
+    cout << "All paths from 'A' to 'E':" << "\n";
+    printArray(g.findAllPaths("A", "E"));
     return 0;
 }
